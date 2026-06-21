@@ -9,7 +9,7 @@
 
 curl -X POST http://localhost:3000/api/send \
  -H 'Content-Type: application/json' \
- -d '{"type":"mcq","question":"What is...","options":["A","B","C","D"]}'
+ -d '{"type":"mcq","question":"What is Jonahs favorite dish?","options":["A: fish","B: dog","C: peanuts","D: milk"]}'
 
 # FRQ
 
