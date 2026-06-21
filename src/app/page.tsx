@@ -1,168 +1,258 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Bookmark, CheckCircle, Zap } from "lucide-react";
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
-// Mock data to simulate the live Deepgram transcript
-const MOCK_TRANSCRIPT = [
-  "Alright, let's get started.",
-  "Today we are diving into Gradient Descent.",
-  "At its core, Gradient Descent is an optimization algorithm.",
-  "We use it to minimize the loss function in our machine learning models.",
-  "Imagine you are blindfolded at the top of a hill...",
-];
+type MCQQuestion = {
+  type: 'mcq'
+  id?: string
+  question: string
+  options: string[]
+}
 
-export default function SidecarApp() {
-  const [transcript, setTranscript] = useState<string[]>([]);
-  const [showQuestion, setShowQuestion] = useState(false);
-  const [answeredState, setAnsweredState] = useState<null | "correct">(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+type FRQQuestion = {
+  type: 'frq'
+  id?: string
+  question: string
+}
 
-  // Simulates the live rolling transcript coming in from Deepgram
-  useEffect(() => {
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < MOCK_TRANSCRIPT.length) {
-        setTranscript((prev) => [...prev, MOCK_TRANSCRIPT[index]]);
-        index++;
-      }
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
+type Question = MCQQuestion | FRQQuestion
 
-  // Auto-scroll to the bottom of the transcript
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [transcript]);
+const LABELS = ['A', 'B', 'C', 'D', 'E', 'F']
 
-  const handleAnswer = () => {
-    setAnsweredState("correct");
-    // Wait 2 seconds for them to see their score, then dismiss
-    setTimeout(() => {
-      setShowQuestion(false);
-      setAnsweredState(null);
-    }, 2000);
-  };
+function MCQOptions({ question, onSubmit }: { question: MCQQuestion; onSubmit: (answer: string) => void }) {
+  const [selected, setSelected] = useState<number | null>(null)
 
   return (
-    // The main container forces a narrow, vertical layout
-    <div className="flex justify-center w-full h-screen bg-gray-100">
-      <main className="w-full max-w-[400px] h-full bg-white shadow-2xl border-l border-r border-gray-200 flex flex-col relative overflow-hidden">
-        {/* Header - Listening Indicator */}
-        <header className="p-4 border-b flex items-center justify-between bg-white z-10 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-            </div>
-            <span className="font-semibold text-gray-800 text-sm flex items-center gap-1">
-              <Mic size={16} /> Listening...
+    <>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {question.options.map((opt, i) => (
+          <motion.button
+            key={i}
+            onClick={() => setSelected(i)}
+            className={`flex items-center gap-3 p-3.5 rounded-xl text-left transition-colors
+              ${selected === i
+                ? 'bg-violet-500/20 ring-1 ring-violet-400/50'
+                : 'bg-white/[0.04] hover:bg-white/[0.08]'
+              }`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06, duration: 0.25 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
+              ${selected === i ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/50'}`}>
+              {LABELS[i]}
             </span>
-          </div>
-          <div className="flex items-center gap-1 text-orange-500 font-bold bg-orange-50 px-3 py-1 rounded-full text-sm">
-            <Zap size={16} /> 120 pts
-          </div>
-        </header>
+            <span className={`text-sm leading-snug ${selected === i ? 'text-white' : 'text-white/70'}`}>
+              {opt}
+            </span>
+          </motion.button>
+        ))}
+      </div>
 
-        {/* Transcript Feed Area */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4 pb-32 scroll-smooth"
+      <motion.button
+        onClick={() => selected !== null && onSubmit(question.options[selected])}
+        disabled={selected === null}
+        className="mt-4 w-full py-3 rounded-xl font-semibold text-sm text-white
+          bg-gradient-to-r from-violet-600 to-indigo-600
+          disabled:opacity-30 disabled:cursor-not-allowed
+          transition-all hover:brightness-110 active:scale-[0.98]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: question.options.length * 0.06 + 0.1 }}
+      >
+        Submit Answer
+      </motion.button>
+    </>
+  )
+}
+
+function FRQInput({ question, onSubmit }: { question: FRQQuestion; onSubmit: (answer: string) => void }) {
+  const [text, setText] = useState('')
+
+  return (
+    <>
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="Type your answer here..."
+        className="w-full h-28 rounded-xl bg-white/[0.04] border border-white/[0.08]
+          text-white text-sm placeholder-white/25 p-3.5 resize-none
+          focus:outline-none focus:ring-1 focus:ring-violet-400/50 focus:bg-white/[0.06]
+          transition-colors"
+        autoFocus
+      />
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-white/25 text-xs">{text.length} chars</span>
+        <button
+          onClick={() => text.trim() && onSubmit(text)}
+          disabled={!text.trim()}
+          className="px-5 py-2 rounded-xl font-semibold text-sm text-white
+            bg-gradient-to-r from-violet-600 to-indigo-600
+            disabled:opacity-30 disabled:cursor-not-allowed
+            transition-all hover:brightness-110 active:scale-[0.98]"
         >
-          {transcript.map((text, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-gray-600 text-sm leading-relaxed"
-            >
-              {text}
-            </motion.div>
-          ))}
-        </div>
+          Submit
+        </button>
+      </div>
+    </>
+  )
+}
 
-        {/* --- DEMO TRIGGER BUTTON --- */}
-        {/* In the final app, this is triggered by the AI backend, not a button */}
-        {!showQuestion && (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
-            <button
-              onClick={() => setShowQuestion(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg hover:bg-blue-700 transition-colors"
-            >
-              Simulate AI Question
-            </button>
-          </div>
+function SuccessView() {
+  return (
+    <motion.div
+      className="flex flex-col items-center gap-3 py-6"
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', damping: 16 }}
+    >
+      <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+        <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <motion.path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+        </svg>
+      </div>
+      <div className="text-center">
+        <p className="text-emerald-400 font-semibold">Answer submitted!</p>
+        <p className="text-white/40 text-sm mt-0.5">Nice work</p>
+      </div>
+    </motion.div>
+  )
+}
+
+export default function Home() {
+  const [question, setQuestion] = useState<Question | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+  const [connected, setConnected] = useState(false)
+
+  useEffect(() => {
+    const es = new EventSource('/api/questions')
+    es.onopen = () => setConnected(true)
+    es.onerror = () => setConnected(false)
+    es.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data as string)
+        if (msg.type === 'question') {
+          setQuestion(msg.question)
+          setSubmitted(false)
+        } else if (msg.type === 'connected') {
+          setConnected(true)
+        }
+      } catch { /* ignore malformed messages */ }
+    }
+    return () => es.close()
+  }, [])
+
+  function handleSubmit(_answer: string) {
+    setSubmitted(true)
+    setTimeout(() => {
+      setQuestion(null)
+      setSubmitted(false)
+    }, 2400)
+  }
+
+  return (
+    <main className="min-h-screen overflow-hidden bg-[#050508] flex items-center justify-center">
+      {/* Ambient orbs */}
+      <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
+        <div className="orb orb-violet" />
+        <div className="orb orb-indigo" />
+        <div className="orb orb-blue" />
+      </div>
+
+      {/* Connection badge */}
+      <div className="fixed top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07]">
+        <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500/80'}`} />
+        <span className="text-white/35 text-xs">{connected ? 'Live' : 'Connecting…'}</span>
+      </div>
+
+      {/* Content */}
+      <AnimatePresence mode="wait">
+        {!question ? (
+          <motion.div
+            key="idle"
+            className="flex flex-col items-center gap-5 select-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="relative flex items-center justify-center">
+              <motion.div
+                className="absolute w-40 h-40 rounded-full bg-violet-600/10"
+                animate={{ scale: [1, 1.35, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.div
+                className="w-28 h-28 rounded-full border border-white/[0.09] bg-white/[0.025] flex flex-col items-center justify-center"
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-white font-bold text-xs tracking-[0.22em]">LIVE</span>
+                </div>
+              </motion.div>
+            </div>
+            <div className="text-center">
+              <p className="text-white/55 font-medium">Stay focused</p>
+              <p className="text-white/22 text-sm mt-1">Questions will appear here</p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="question"
+            className="w-full max-w-md mx-4"
+            initial={{ opacity: 0, y: 28, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.97 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 310 }}
+          >
+            {/* Gradient-border card */}
+            <div className="p-px rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-cyan-400">
+              <div className="rounded-[15px] bg-[#0e0e18] p-5">
+                {/* Type badge */}
+                <div className="mb-4">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase
+                    bg-violet-500/12 text-violet-300 border border-violet-500/20">
+                    {question.type === 'mcq' ? 'Multiple Choice' : 'Free Response'}
+                  </span>
+                </div>
+
+                {/* Question */}
+                <p className="text-white text-lg font-semibold leading-snug mb-4">
+                  {question.question}
+                </p>
+
+                <div className="h-px bg-white/[0.07] mb-4" />
+
+                {/* Answer area */}
+                <AnimatePresence mode="wait">
+                  {submitted ? (
+                    <SuccessView key="success" />
+                  ) : question.type === 'mcq' ? (
+                    <motion.div key="mcq" exit={{ opacity: 0 }}>
+                      <MCQOptions question={question} onSubmit={handleSubmit} />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="frq" exit={{ opacity: 0 }}>
+                      <FRQInput question={question} onSubmit={handleSubmit} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
         )}
-
-        {/* Slide-Up Question Card */}
-        <AnimatePresence>
-          {showQuestion && (
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-2xl z-20"
-            >
-              {answeredState === "correct" ? (
-                // Success State (Simulating Redis Similarity Search match)
-                <div className="p-8 flex flex-col items-center justify-center text-center gap-3">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring" }}
-                  >
-                    <CheckCircle className="text-green-500 w-16 h-16" />
-                  </motion.div>
-                  <h3 className="font-bold text-xl text-gray-800">Spot On!</h3>
-                  <p className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                    Similarity Score: 92%
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">+50 Speed Bonus</p>
-                </div>
-              ) : (
-                // Question State
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                      Quick Check
-                    </span>
-                    <button
-                      onClick={() => setShowQuestion(false)}
-                      className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-xs font-medium bg-gray-100 px-2 py-1 rounded"
-                    >
-                      <Bookmark size={12} /> Save for later
-                    </button>
-                  </div>
-
-                  <h3 className="font-semibold text-gray-800 text-base mb-4 leading-tight">
-                    What is the primary purpose of Gradient Descent?
-                  </h3>
-
-                  <div className="space-y-2">
-                    {[
-                      "To maximize the learning rate",
-                      "To minimize the loss function",
-                      "To generate random weights",
-                    ].map((opt, i) => (
-                      <button
-                        key={i}
-                        onClick={handleAnswer}
-                        className="w-full text-left p-3 rounded-xl border border-gray-200 text-sm text-gray-700 hover:border-blue-500 hover:bg-blue-50 transition-all focus:ring-2 focus:ring-blue-500"
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-    </div>
-  );
+      </AnimatePresence>
+    </main>
+  )
 }
