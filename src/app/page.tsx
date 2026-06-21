@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
 
 type MCQQuestion = {
   type: 'mcq'
@@ -101,6 +102,16 @@ function FRQInput({ question, onSubmit }: { question: FRQQuestion; onSubmit: (an
   )
 }
 
+const mdComponents = {
+  p: ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }: React.HTMLAttributes<HTMLElement>) => <strong className="font-semibold text-white">{children}</strong>,
+  em: ({ children }: React.HTMLAttributes<HTMLElement>) => <em className="italic text-white/70">{children}</em>,
+  ul: ({ children }: React.HTMLAttributes<HTMLUListElement>) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+  ol: ({ children }: React.HTMLAttributes<HTMLOListElement>) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+  li: ({ children }: React.HTMLAttributes<HTMLLIElement>) => <li className="leading-snug">{children}</li>,
+  code: ({ children }: React.HTMLAttributes<HTMLElement>) => <code className="font-mono text-[0.85em] bg-white/10 px-1 py-0.5 rounded">{children}</code>,
+}
+
 function ResultView({ feedback }: { feedback: Feedback | null }) {
   if (!feedback) {
     return (
@@ -149,7 +160,9 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
             transition={{ delay: 0.18, duration: 0.3 }}
           >
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] mb-2 text-white/35">Explanation</p>
-            <p className="text-white/90 text-sm leading-relaxed">{explanation}</p>
+            <div className="text-white/90 text-sm leading-relaxed prose-sm prose-invert">
+              <ReactMarkdown components={mdComponents}>{explanation}</ReactMarkdown>
+            </div>
           </motion.div>
         )}
       </motion.div>
@@ -194,7 +207,9 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
           <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${correct ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
             Explanation
           </p>
-          <p className="text-white/90 text-sm leading-relaxed">{explanation}</p>
+          <div className="text-white/90 text-sm leading-relaxed">
+            <ReactMarkdown components={mdComponents}>{explanation}</ReactMarkdown>
+          </div>
         </motion.div>
       )}
     </motion.div>
