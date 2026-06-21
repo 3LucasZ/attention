@@ -122,61 +122,54 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
     )
   }
 
-  if (feedback.correct) {
-    return (
-      <motion.div
-        className="flex flex-col items-center gap-3 py-6"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', damping: 16 }}
-      >
-        <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
-          <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-            <motion.path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            />
-          </svg>
-        </div>
-        <div className="text-center">
-          <p className="text-emerald-400 font-semibold">Correct!</p>
-          {feedback.explanation && (
-            <p className="text-white/40 text-sm mt-1 leading-snug">{feedback.explanation}</p>
-          )}
-        </div>
-      </motion.div>
-    )
-  }
+  const correct = feedback.correct
+  const accent = correct ? 'emerald' : 'red'
 
   return (
     <motion.div
-      className="flex flex-col items-center gap-3 py-6"
+      className="flex flex-col gap-4 pt-2 pb-1"
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', damping: 16 }}
     >
-      <div className="w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center">
-        <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-          <motion.path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M6 18L18 6M6 6l12 12"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-          />
-        </svg>
+      {/* Status row */}
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center
+          ${correct ? 'bg-emerald-500/15' : 'bg-red-500/15'}`}>
+          <svg className={`w-5 h-5 ${correct ? 'text-emerald-400' : 'text-red-400'}`}
+            fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <motion.path
+              strokeLinecap="round" strokeLinejoin="round"
+              d={correct ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+            />
+          </svg>
+        </div>
+        <p className={`font-bold text-base ${correct ? 'text-emerald-400' : 'text-red-400'}`}>
+          {correct ? 'Correct!' : 'Not quite'}
+        </p>
       </div>
-      <div className="text-center">
-        <p className="text-red-400 font-semibold">Not quite</p>
-        {feedback.explanation && (
-          <p className="text-white/40 text-sm mt-1 leading-snug">{feedback.explanation}</p>
-        )}
-      </div>
+
+      {/* Explanation */}
+      {feedback.explanation && (
+        <motion.div
+          className={`rounded-xl p-4 border
+            ${correct
+              ? 'bg-emerald-500/[0.07] border-emerald-500/20'
+              : 'bg-red-500/[0.07] border-red-500/20'
+            }`}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18, duration: 0.3 }}
+        >
+          <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${correct ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+            Explanation
+          </p>
+          <p className="text-white/90 text-sm leading-relaxed">{feedback.explanation}</p>
+        </motion.div>
+      )}
     </motion.div>
   )
 }
