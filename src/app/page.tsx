@@ -17,6 +17,7 @@ type FRQQuestion = {
 }
 
 type Question = MCQQuestion | FRQQuestion
+type Feedback = { correct: boolean; explanation?: string }
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F']
 
@@ -100,7 +101,57 @@ function FRQInput({ question, onSubmit }: { question: FRQQuestion; onSubmit: (an
   )
 }
 
-function SuccessView() {
+function ResultView({ feedback }: { feedback: Feedback | null }) {
+  if (!feedback) {
+    return (
+      <motion.div
+        className="flex flex-col items-center gap-3 py-6"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 16 }}
+      >
+        <div className="w-16 h-16 rounded-full bg-white/[0.05] flex items-center justify-center">
+          <motion.div
+            className="w-6 h-6 rounded-full border-2 border-violet-400 border-t-transparent"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          />
+        </div>
+        <p className="text-white/45 text-sm font-medium">Checking your answer…</p>
+      </motion.div>
+    )
+  }
+
+  if (feedback.correct) {
+    return (
+      <motion.div
+        className="flex flex-col items-center gap-3 py-6"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 16 }}
+      >
+        <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+          <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <motion.path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            />
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-emerald-400 font-semibold">Correct!</p>
+          {feedback.explanation && (
+            <p className="text-white/40 text-sm mt-1 leading-snug">{feedback.explanation}</p>
+          )}
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       className="flex flex-col items-center gap-3 py-6"
@@ -108,21 +159,23 @@ function SuccessView() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', damping: 16 }}
     >
-      <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
-        <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+      <div className="w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center">
+        <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
           <motion.path
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M5 13l4 4L19 7"
+            d="M6 18L18 6M6 6l12 12"
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
           />
         </svg>
       </div>
       <div className="text-center">
-        <p className="text-emerald-400 font-semibold">Answer submitted!</p>
-        <p className="text-white/40 text-sm mt-0.5">Nice work</p>
+        <p className="text-red-400 font-semibold">Not quite</p>
+        {feedback.explanation && (
+          <p className="text-white/40 text-sm mt-1 leading-snug">{feedback.explanation}</p>
+        )}
       </div>
     </motion.div>
   )
@@ -131,8 +184,8 @@ function SuccessView() {
 export default function Home() {
   const [question, setQuestion] = useState<Question | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [connected, setConnected] = useState(false)
-
   useEffect(() => {
     const es = new EventSource('/api/questions')
     es.onopen = () => setConnected(true)
@@ -143,20 +196,24 @@ export default function Home() {
         if (msg.type === 'question') {
           setQuestion(msg.question)
           setSubmitted(false)
+          setFeedback(null)
         } else if (msg.type === 'connected') {
           setConnected(true)
+        } else if (msg.type === 'feedback') {
+          setFeedback({ correct: msg.correct, explanation: msg.explanation })
         }
       } catch { /* ignore malformed messages */ }
     }
     return () => es.close()
   }, [])
 
-  function handleSubmit(_answer: string) {
+  function handleSubmit(answer: string) {
     setSubmitted(true)
-    setTimeout(() => {
-      setQuestion(null)
-      setSubmitted(false)
-    }, 2400)
+    fetch('/api/answers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, answer }),
+    }).catch(() => {})
   }
 
   return (
@@ -237,7 +294,7 @@ export default function Home() {
                 {/* Answer area */}
                 <AnimatePresence mode="wait">
                   {submitted ? (
-                    <SuccessView key="success" />
+                    <ResultView key={feedback ? `result-${feedback.correct}` : 'pending'} feedback={feedback} />
                   ) : question.type === 'mcq' ? (
                     <motion.div key="mcq" exit={{ opacity: 0 }}>
                       <MCQOptions question={question} onSubmit={handleSubmit} />
