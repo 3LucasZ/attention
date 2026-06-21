@@ -1,27 +1,11 @@
-import { addClient, removeClient } from '@/lib/sse'
+import { waitForQuestion } from '@/lib/state'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  const encoder = new TextEncoder()
-  let ctrl: ReadableStreamDefaultController<Uint8Array>
-
-  const stream = new ReadableStream<Uint8Array>({
-    start(c) {
-      ctrl = c
-      addClient(ctrl)
-      ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected' })}\n\n`))
-    },
-    cancel() {
-      removeClient(ctrl)
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  })
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const afterId = parseInt(url.searchParams.get('after') ?? '-1', 10)
+  const active = await waitForQuestion(afterId)
+  if (!active) return Response.json({ question: null })
+  return Response.json({ id: active.id, question: active.question })
 }

@@ -1,7 +1,10 @@
-import { broadcast, clientCount } from '@/lib/sse'
+import { setQuestion, waitForAnswer } from '@/lib/state'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
-  const question = await request.json()
-  broadcast({ type: 'question', question })
-  return Response.json({ ok: true, clients: clientCount() })
+  const { correctAnswer: _ca, explanation: _ex, ...question } = await request.json()
+  setQuestion(question)
+  const answer = await waitForAnswer()
+  return Response.json({ ok: true, answer })
 }

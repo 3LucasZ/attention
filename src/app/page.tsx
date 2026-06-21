@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 type MCQQuestion = {
@@ -17,7 +17,7 @@ type FRQQuestion = {
 }
 
 type Question = MCQQuestion | FRQQuestion
-type Feedback = { correct: boolean; explanation?: string }
+type Feedback = { correct: boolean | null; explanation?: string | null }
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F']
 
@@ -122,8 +122,39 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
     )
   }
 
-  const correct = feedback.correct
-  const accent = correct ? 'emerald' : 'red'
+  const { correct, explanation } = feedback
+
+  if (correct === null) {
+    return (
+      <motion.div
+        className="flex flex-col gap-4 pt-2 pb-1"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 16 }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-white/[0.08]">
+            <svg className="w-5 h-5 text-white/50" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <motion.path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"
+                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }} />
+            </svg>
+          </div>
+          <p className="font-bold text-base text-white/60">Answer recorded</p>
+        </div>
+        {explanation && (
+          <motion.div
+            className="rounded-xl p-4 border bg-white/[0.04] border-white/10"
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.3 }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-white/35">Explanation</p>
+            <p className="text-white/90 text-sm leading-relaxed">{explanation}</p>
+          </motion.div>
+        )}
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -132,7 +163,6 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', damping: 16 }}
     >
-      {/* Status row */}
       <div className="flex items-center gap-3">
         <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center
           ${correct ? 'bg-emerald-500/15' : 'bg-red-500/15'}`}>
@@ -141,8 +171,7 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
             <motion.path
               strokeLinecap="round" strokeLinejoin="round"
               d={correct ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'}
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
+              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
             />
           </svg>
@@ -152,22 +181,20 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
         </p>
       </div>
 
-      {/* Explanation */}
-      {feedback.explanation && (
+      {explanation && (
         <motion.div
           className={`rounded-xl p-4 border
             ${correct
               ? 'bg-emerald-500/[0.07] border-emerald-500/20'
               : 'bg-red-500/[0.07] border-red-500/20'
             }`}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.3 }}
         >
           <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${correct ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
             Explanation
           </p>
-          <p className="text-white/90 text-sm leading-relaxed">{feedback.explanation}</p>
+          <p className="text-white/90 text-sm leading-relaxed">{explanation}</p>
         </motion.div>
       )}
     </motion.div>
@@ -179,34 +206,58 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [connected, setConnected] = useState(false)
+  const activeId = useRef<number | null>(null)
+
   useEffect(() => {
-    const es = new EventSource('/api/questions')
-    es.onopen = () => setConnected(true)
-    es.onerror = () => setConnected(false)
-    es.onmessage = e => {
-      try {
-        const msg = JSON.parse(e.data as string)
-        if (msg.type === 'question') {
-          setQuestion(msg.question)
-          setSubmitted(false)
-          setFeedback(null)
-        } else if (msg.type === 'connected') {
+    let cancelled = false
+    let abortCtrl = new AbortController()
+    let lastId = -1
+
+    async function loop() {
+      while (!cancelled) {
+        try {
+          abortCtrl = new AbortController()
+          const res = await fetch(`/api/questions?after=${lastId}`, { signal: abortCtrl.signal })
           setConnected(true)
-        } else if (msg.type === 'feedback') {
-          setFeedback({ correct: msg.correct, explanation: msg.explanation })
+          const data = await res.json()
+          if (data?.id) {
+            lastId = data.id
+            activeId.current = data.id
+            setQuestion(data.question as Question)
+            setSubmitted(false)
+            setFeedback(null)
+          }
+        } catch {
+          if (cancelled) break
+          setConnected(false)
+          await new Promise(r => setTimeout(r, 2000))
         }
-      } catch { /* ignore malformed messages */ }
+      }
     }
-    return () => es.close()
+
+    loop()
+    return () => { cancelled = true; abortCtrl.abort() }
   }, [])
 
-  function handleSubmit(answer: string) {
+  async function handleSubmit(answer: string) {
+    const myId = activeId.current
     setSubmitted(true)
+
     fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, answer }),
+      body: JSON.stringify({ answer }),
     }).catch(() => {})
+
+    try {
+      const res = await fetch('/api/feedback')
+      const data = await res.json()
+      if (activeId.current === myId) {
+        setFeedback({ correct: data.correct ?? null, explanation: data.explanation ?? null })
+      }
+    } catch {
+      if (activeId.current === myId) setFeedback({ correct: null })
+    }
   }
 
   return (
@@ -266,10 +317,8 @@ export default function Home() {
             exit={{ opacity: 0, y: -16, scale: 0.97 }}
             transition={{ type: 'spring', damping: 26, stiffness: 310 }}
           >
-            {/* Gradient-border card */}
             <div className="p-px rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-cyan-400">
               <div className="rounded-[15px] bg-[#0e0e18] p-5">
-                {/* Type badge */}
                 <div className="mb-4">
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase
                     bg-violet-500/12 text-violet-300 border border-violet-500/20">
@@ -277,14 +326,12 @@ export default function Home() {
                   </span>
                 </div>
 
-                {/* Question */}
                 <p className="text-white text-lg font-semibold leading-snug mb-4">
                   {question.question}
                 </p>
 
                 <div className="h-px bg-white/[0.07] mb-4" />
 
-                {/* Answer area */}
                 <AnimatePresence mode="wait">
                   {submitted ? (
                     <ResultView key={feedback ? `result-${feedback.correct}` : 'pending'} feedback={feedback} />
