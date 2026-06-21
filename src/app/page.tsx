@@ -41,7 +41,7 @@ function MCQOptions({ question, onSubmit }: { question: MCQQuestion; onSubmit: (
             transition={{ delay: i * 0.06, duration: 0.25 }}
             whileTap={{ scale: 0.97 }}
           >
-            <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold tracking-[0.04em] flex-shrink-0 font-mono
               ${selected === i ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/50'}`}>
               {LABELS[i]}
             </span>
@@ -117,7 +117,7 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
         </div>
-        <p className="text-white/45 text-sm font-medium">Checking your answer…</p>
+        <p className="text-[11px] font-semibold tracking-[0.1em] uppercase text-white/40">Checking your answer…</p>
       </motion.div>
     )
   }
@@ -148,7 +148,7 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, duration: 0.3 }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-white/35">Explanation</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] mb-2 text-white/35">Explanation</p>
             <p className="text-white/90 text-sm leading-relaxed">{explanation}</p>
           </motion.div>
         )}
@@ -176,7 +176,7 @@ function ResultView({ feedback }: { feedback: Feedback | null }) {
             />
           </svg>
         </div>
-        <p className={`font-bold text-base ${correct ? 'text-emerald-400' : 'text-red-400'}`}>
+        <p className={`font-semibold tracking-[-0.01em] text-base ${correct ? 'text-emerald-400' : 'text-red-400'}`}>
           {correct ? 'Correct!' : 'Not quite'}
         </p>
       </div>
@@ -272,7 +272,7 @@ export default function Home() {
       {/* Connection badge */}
       <div className="fixed top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.07]">
         <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500/80'}`} />
-        <span className="text-white/35 text-xs">{connected ? 'Live' : 'Connecting…'}</span>
+        <span className="text-white/35 text-[11px] font-semibold tracking-[0.1em] uppercase">{connected ? 'Online' : 'Connecting…'}</span>
       </div>
 
       {/* Content */}
@@ -299,13 +299,13 @@ export default function Home() {
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-white font-bold text-xs tracking-[0.22em]">LIVE</span>
+                  <span className="text-white font-bold text-[11px] tracking-[0.14em] uppercase" style={{ fontFamily: 'var(--font-sans)' }}>Live</span>
                 </div>
               </motion.div>
             </div>
             <div className="text-center">
-              <p className="text-white/55 font-medium">Stay focused</p>
-              <p className="text-white/22 text-sm mt-1">Questions will appear here</p>
+              <p className="text-white/55 font-semibold tracking-[-0.01em]">Stay focused</p>
+              <p className="text-white/25 text-[13px] mt-1 tracking-[0.01em]">Questions will appear here</p>
             </div>
           </motion.div>
         ) : (
@@ -320,13 +320,13 @@ export default function Home() {
             <div className="p-px rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-cyan-400">
               <div className="rounded-[15px] bg-[#0e0e18] p-5">
                 <div className="mb-4">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-[0.12em] uppercase
                     bg-violet-500/12 text-violet-300 border border-violet-500/20">
                     {question.type === 'mcq' ? 'Multiple Choice' : 'Free Response'}
                   </span>
                 </div>
 
-                <p className="text-white text-lg font-semibold leading-snug mb-4">
+                <p className="text-white text-lg font-semibold leading-snug tracking-[-0.01em] mb-4">
                   {question.question}
                 </p>
 
